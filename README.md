@@ -1,4 +1,4 @@
-# entrarecon
+# EntraRecon
 
 Yet an other tool to perform the external recon of a tenant.
 
