@@ -2,9 +2,14 @@
 
 Yet an other tool to perform the external recon of a tenant.
 
-What's new? Nothing
-Why? To learn
+* What's new? Nothing
+* Why? To learn
 
+## Installation
+
+```
+pipx install git+https://github.com/Mauriceter/EntraRecon.git
+```
 
 ## Usage
 
