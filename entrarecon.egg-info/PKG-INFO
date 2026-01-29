@@ -1,3 +1,18 @@
+Metadata-Version: 2.4
+Name: entrarecon
+Version: 0.1.0
+Summary: Entra ID / Azure reconnaissance utilities
+Author: Mauricebis
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: requests
+Dynamic: author
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
+
 # entrarecon
 
 Yet an other tool to perform the external recon of a tenant.

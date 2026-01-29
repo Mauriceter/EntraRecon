@@ -1,0 +1,2 @@
+[console_scripts]
+entrarecon = entrarecon.entrarecon:main
