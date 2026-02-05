@@ -16,6 +16,8 @@ class EntraRecon:
         self.tenantname = None
         self.tenantid = None
         self.tenantregion = None
+        self.cloudsync = False
+        self.desktopsso = False
         self.allazureservices = { # from https://github.com/NetSPI/MicroBurst/blob/1990ea38d13876cc282c5863a2ff4bcfc88a20c0/Misc/Invoke-EnumerateAzureSubDomains.ps1#L77
             "onmicrosoft.com": "Microsoft Hosted Domain",
             "scm.azurewebsites.net": "App Services - Management",
@@ -93,10 +95,10 @@ class EntraRecon:
         self.tenantregion = data.get('tenant_region_scope')
         self.tenantid = data.get('issuer')[24:-1]
 
-        self.check_federated(self.domain, True)
+        self.check_federated(self.domain, detail=True)
 
     def check_federated(self, domain, detail=False):
-        url = f"https://login.microsoftonline.com/GetUserRealm.srf?login=aaaa@{domain}"
+        url = f"https://login.microsoftonline.com/GetUserRealm.srf?login=aaaaa@{domain}"
 
         response = requests.get(url, timeout=10)
         data = response.json()
@@ -135,9 +137,9 @@ class EntraRecon:
 
         self.domains = sorted(domains)
 
-    def check_destopsso(self):
+    def check_destopsso_and_cloudsync(self):
         body = {
-            "username": f"test@{self.domain}",
+            "username": f"ADToAADSyncServiceAccount@{self.domain}",
             "isOtherIdpSupported": True,
             "checkPhones": True,
             "isRemoteNGCSupported": True,
@@ -152,10 +154,10 @@ class EntraRecon:
             "Content-Type": "application/json; charset=UTF-8",
         }
         response = requests.post(url, json=body, headers=headers)
-        userRealm = response.json()
+        credentialType = response.json()
         
-        desktop_sso = userRealm["EstsProperties"].get("DesktopSsoEnabled", False)
-        return desktop_sso
+        self.desktopsso = credentialType["EstsProperties"].get("DesktopSsoEnabled", False)
+        self.cloudsync = (credentialType.get("IfExistsResult") == 0)
     
     def check_mdi(self):
         tenant = self.tenantname.split(".", 1)[0]
@@ -173,6 +175,7 @@ class EntraRecon:
                 continue
         return "No"
     
+
     # https://www.netspi.com/blog/technical-blog/cloud-pentesting/enumerating-azure-services/
     def check_azureservices(self):
         keywords = [self.tenantname.split(".", 1)[0]]  # add keywork variations later
@@ -219,6 +222,7 @@ def main():
     entrarecon = EntraRecon(args.domain)
     
     entrarecon.check_tenant()
+    entrarecon.check_destopsso_and_cloudsync()
     entrarecon.get_tenant_domains_from_acs()
 
     max_len = max(len(d) for d in entrarecon.domains)
@@ -226,14 +230,17 @@ def main():
     
 
     print('')
-    print(f"{bold('Tenant Brand:'):25} {entrarecon.tenantbrand}")
-    print(f"{bold('Tenant Name:'):25} {entrarecon.tenantname}")
-    print(f"{bold('Tenant ID:'):25} {entrarecon.tenantid}")
-    print(f"{bold('Tenant Region:'):25} {entrarecon.tenantregion}")
+    print(bold("General Information"))
+    print(f"{bold('Tenant Brand:'):22} {entrarecon.tenantbrand}")
+    print(f"{bold('Tenant Name:'):22} {entrarecon.tenantname}")
+    print(f"{bold('Tenant ID:'):22} {entrarecon.tenantid}")
+    print(f"{bold('Tenant Region:'):22} {entrarecon.tenantregion}")
     print('')
-    print(f"{bold('DesktopSSO:'):25} {"Enabled" if entrarecon.check_destopsso() else "Disabled"}")
-    print(f"{bold('MDI Instance:'):25} {entrarecon.check_mdi()}")
-    print(f"{bold('Autodiscover:'):25} {entrarecon.check_autodiscover()}")
+    print(bold("OnPrem Information"))
+    print(f"{bold('DesktopSSO:'):22} {"Enabled" if entrarecon.desktopsso else "Disabled"}")
+    print(f"{bold('Cloud Sync:'):22} {"Enabled" if entrarecon.cloudsync else "Disabled"}")
+    print(f"{bold('MDI Instance:'):22} {entrarecon.check_mdi()}")
+    print(f"{bold('Autodiscover:'):22} {entrarecon.check_autodiscover()}")
     print('')
     print("-" * (max_len+25))
     print(f"{bold('Domain'):{max_len+8}} | {bold('Type'):17} | {bold('STS'):10}")
