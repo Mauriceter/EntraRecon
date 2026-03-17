@@ -11,7 +11,7 @@ def bold(text):
 class EntraRecon:
     def __init__(self, domain):
         self.domain = domain
-        self.domains = None
+        self.domains = []
         self.tenantbrand = None
         self.tenantname = None
         self.tenantid = None
@@ -160,6 +160,8 @@ class EntraRecon:
         self.cloudsync = (credentialType.get("IfExistsResult") == 0)
     
     def check_mdi(self):
+        if self.tenantname is None or self.tenantname == "":
+            return "Unknown"
         tenant = self.tenantname.split(".", 1)[0]
 
         domains = [
@@ -178,6 +180,8 @@ class EntraRecon:
 
     # https://www.netspi.com/blog/technical-blog/cloud-pentesting/enumerating-azure-services/
     def check_azureservices(self):
+        if self.tenantname is None or self.tenantname == "":
+            return
         keywords = [self.tenantname.split(".", 1)[0]]  # add keywork variations later
 
         for service in self.allazureservices:
@@ -225,7 +229,10 @@ def main():
     entrarecon.check_destopsso_and_cloudsync()
     entrarecon.get_tenant_domains_from_acs()
 
-    max_len = max(len(d) for d in entrarecon.domains)
+    if len(entrarecon.domains) != 0:
+        max_len = max(len(d) for d in entrarecon.domains)
+    else:
+        max_len = 20
     entrarecon.tenantname = next((d for d in entrarecon.domains if d.endswith(".onmicrosoft.com") and not d.endswith(".mail.onmicrosoft.com")),"")
     
 
