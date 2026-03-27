@@ -10,7 +10,8 @@ setup(
     packages=find_packages(),
     python_requires=">=3.8",
     install_requires=[
-        "requests"
+        "requests",
+        "dnspython"
     ],
     entry_points={
         "console_scripts": [

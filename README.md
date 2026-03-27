@@ -9,6 +9,11 @@ Yet an other tool to perform the external recon of a tenant.
 
 **/!\ ACS domains enum has been fixed so this part doesn't work anymore**
 
+Related domains are checked using the api from https://micahvandeusen.com/tools/tenant-domains/
+This is based on scrapped domains so expect a lot of domains in the tenant to be missing.
+
+Also note it attempts to get the MOERA (.onmicrosoft.com) domain from DKIM but it might fails. In such cases, you can try to find it manually using using variations on the found domains such as adding sa, group or the tld at the end. (domain.com -> try domaingroup.onmicrosoft.com)
+
 ## Installation
 
 ```

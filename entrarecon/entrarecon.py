@@ -3,6 +3,9 @@ import requests
 import re
 import sys
 import socket
+import dns.resolver
+
+import entrarecon
 
 
 def bold(text):
@@ -113,6 +116,7 @@ class EntraRecon:
         return (dtype, sts)
 
     def get_tenant_domains_from_acs(self):
+        # No working anymore, kept for posterity
 
         url = f"https://accounts.accesscontrol.windows.net/{self.domain}/metadata/json/1"
 
@@ -137,6 +141,15 @@ class EntraRecon:
                     domains.add(domain)
 
         self.domains = sorted(domains)
+
+    def get_tenant_domains_from_api(self):
+        # use api of https://micahvandeusen.com/tools/tenant-domains/
+        api = f"https://tenant-api.micahvandeusen.com/search?tenant_id={self.tenantid}"
+        response = requests.get(api, timeout=10)
+        domains = response.json().get("domains", [])
+        self.domains.append(self.domain)
+        self.domains = sorted(set(self.domains) | set(domains))
+
 
     def check_destopsso_and_cloudsync(self):
         body = {
@@ -181,9 +194,10 @@ class EntraRecon:
 
     # https://www.netspi.com/blog/technical-blog/cloud-pentesting/enumerating-azure-services/
     def check_azureservices(self):
-        if self.tenantname is None or self.tenantname == "":
-            return
-        keywords = [self.tenantname.split(".", 1)[0]]  # add keywork variations later
+        if self.tenantname is None or self.tenantname == "Not Found":
+            keywords = [self.domain.split(".", 1)[0]]
+        else:
+            keywords = [self.tenantname.split(".", 1)[0]]  # add keywork variations later
 
         for service in self.allazureservices:
             for keyword in keywords:
@@ -213,7 +227,29 @@ class EntraRecon:
             return f"autodiscover.{self.domain} ({hosting})"
         except socket.gaierror:
             return "Not found"
+    
+    def find_MOERA(self):
+        self.tenantname = next((d for d in self.domains if d.endswith(".onmicrosoft.com") and not d.endswith(".mail.onmicrosoft.com")),"Not Found")
+        if self.tenantname == "Not Found":
+            dkim = f"selector1._domainkey.{self.domain}"
+            try:
+                answers = dns.resolver.resolve(dkim, 'CNAME')
+                for rdata in answers:
+                    cname = rdata.target.to_text()
+                    if cname.endswith(".onmicrosoft.com."):
+                        tenantname = cname.split("_domainkey.",1)[-1][:-1]
+                        #ensure domain found is in same tenant
+                        moera = EntraRecon(tenantname)
+                        moera.check_tenant()
+                        if moera.tenantid == self.tenantid:
+                            self.tenantname = tenantname
+                            self.domains.append(self.tenantname)
+                            return
+                return
+            except Exception as e:
+                return
 
+            
 
 
 def main():
@@ -228,14 +264,13 @@ def main():
     
     entrarecon.check_tenant()
     entrarecon.check_destopsso_and_cloudsync()
-    entrarecon.get_tenant_domains_from_acs()
+    entrarecon.get_tenant_domains_from_api()
+    entrarecon.find_MOERA()
 
     if len(entrarecon.domains) != 0:
         max_len = max(len(d) for d in entrarecon.domains)
     else:
         max_len = 20
-    entrarecon.tenantname = next((d for d in entrarecon.domains if d.endswith(".onmicrosoft.com") and not d.endswith(".mail.onmicrosoft.com")),"")
-    
 
     print('')
     print(bold("General Information"))
