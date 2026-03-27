@@ -7,6 +7,8 @@ Yet an other tool to perform the external recon of a tenant.
 
 `Invoke-AADIntReconAsOutsider in python`
 
+/!\ ACS domains enum has been fixed so this part doesn't work anymore
+
 ## Installation
 
 ```
