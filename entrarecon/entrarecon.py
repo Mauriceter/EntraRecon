@@ -85,14 +85,17 @@ class EntraRecon:
         }
         self.azureservices = []
 
-    def check_tenant(self):
+    def check_tenant(self, fail=True):
         url = f"https://login.microsoftonline.com/{self.domain}/.well-known/openid-configuration"
         response = requests.get(url, timeout=10)
         try:
             response.raise_for_status()
         except:
-            print(f"No tenant associated with {self.domain}")
-            sys.exit(0)
+            if fail:
+                print(f"No tenant associated with {self.domain}")
+                sys.exit(0)
+            else:
+                return
 
         data = response.json()
         self.tenantregion = data.get('tenant_region_scope')
@@ -240,7 +243,6 @@ class EntraRecon:
         except Exception as e:
                 return tenantname
 
-    
     def find_MOERA(self):
         self.tenantname = next((d for d in self.domains if d.endswith(".onmicrosoft.com") and not d.endswith(".mail.onmicrosoft.com")),"Not Found")
         if self.tenantname == "Not Found":
@@ -253,25 +255,15 @@ class EntraRecon:
                     self.tenantname = moeraname
                     self.domains.append(self.tenantname)
                     return
-            moera1 = EntraRecon(f"{self.domain.split('.',1)[0]}.onmicrosoft.com")
-            moera1.check_tenant()
-            if moera1.tenantid == self.tenantid:
-                self.tenantname = moera1.domain
-                self.domains.append(self.tenantname)
-                return
-            moera2 = EntraRecon(f"{self.domain.split('.',1)[0]}group.onmicrosoft.com")
-            moera2.check_tenant()
-            if moera2.tenantid == self.tenantid:
-                self.tenantname = moera2.domain
-                self.domains.append(self.tenantname)
-                return
-            moera3 = EntraRecon(f"{self.domain.split('.',1)[0]}sa.onmicrosoft.com")
-            moera3.check_tenant()
-            if moera3.tenantid == self.tenantid:
-                self.tenantname = moera3.domain
-                self.domains.append(self.tenantname)
-                return
-            
+            for ext in ["", "group", "sa"]:
+                moera1 = EntraRecon(f"{self.domain.split('.',1)[0]}{ext}.onmicrosoft.com")
+                moera1.check_tenant(fail=False)
+                if moera1.tenantid == self.tenantid:
+                    self.tenantname = moera1.domain
+                    self.domains.append(self.tenantname)
+                    return
+
+
 
 def main():
     parser = argparse.ArgumentParser(
