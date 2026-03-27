@@ -14,6 +14,8 @@ This is based on scrapped domains so expect a lot of domains in the tenant to be
 
 Also note it attempts to get the MOERA (.onmicrosoft.com) domain from DKIM but it might fails. In such cases, you can try to find it manually using using variations on the found domains such as adding sa, group or the tld at the end. (domain.com -> try domaingroup.onmicrosoft.com)
 
+
+
 ## Installation
 
 ```
@@ -43,14 +45,15 @@ Cloud Sync:    Disabled
 MDI Instance:  domain.atp.azure.com
 Autodiscover:  autodiscover.domain.com (hosted by microsoft)
 
-------------------------------------------------------------
-Domain                      | Type      | STS
-------------------------------------------------------------    
-domain.com                  | Managed   |           
-test.domain.com             | Federated | adfs.domain.com                
-domain.mail.onmicrosoft.com | Managed   |           
-domain.onmicrosoft.com      | Managed   |           
-------------------------------------------------------------
+----------------------------------------------------------------------------
+Domain                      | Type      | STS              | DKIM
+----------------------------------------------------------------------------
+test.com                    | Managed   |                  | test.onmicrosoft.com
+domain.com                  | Managed   |                  | domain.onmicrosoft.com 
+test.domain.com             | Federated | adfs.domain.com  | test.onmicrosoft.com          
+domain.mail.onmicrosoft.com | Managed   |                  |
+domain.onmicrosoft.com      | Managed   |                  | domain.onmicrosoft.com  
+----------------------------------------------------------------------------
 
 Enumerating potential Azure services
 Email: domain.mail.protection.outlook.com

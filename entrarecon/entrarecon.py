@@ -150,7 +150,6 @@ class EntraRecon:
         self.domains.append(self.domain)
         self.domains = sorted(set(self.domains) | set(domains))
 
-
     def check_destopsso_and_cloudsync(self):
         body = {
             "username": f"ADToAADSyncServiceAccount@{self.domain}",
@@ -174,7 +173,7 @@ class EntraRecon:
         self.cloudsync = (credentialType.get("IfExistsResult") == 0)
     
     def check_mdi(self):
-        if self.tenantname is None or self.tenantname == "":
+        if self.tenantname is None or self.tenantname == "Not Found":
             return "Unknown"
         tenant = self.tenantname.split(".", 1)[0]
 
@@ -191,7 +190,6 @@ class EntraRecon:
                 continue
         return "No"
     
-
     # https://www.netspi.com/blog/technical-blog/cloud-pentesting/enumerating-azure-services/
     def check_azureservices(self):
         if self.tenantname is None or self.tenantname == "Not Found":
@@ -228,29 +226,52 @@ class EntraRecon:
         except socket.gaierror:
             return "Not found"
     
+    def check_dkim(self,domain):
+        dkim = f"selector1._domainkey.{domain}"
+        tenantname = ""
+        try:
+            answers = dns.resolver.resolve(dkim, 'CNAME')
+            for rdata in answers:
+                cname = rdata.target.to_text()
+                if cname.endswith(".onmicrosoft.com."):
+                    tenantname = cname.split("_domainkey.",1)[-1][:-1]
+                    return tenantname
+            return tenantname
+        except Exception as e:
+                return tenantname
+
+    
     def find_MOERA(self):
         self.tenantname = next((d for d in self.domains if d.endswith(".onmicrosoft.com") and not d.endswith(".mail.onmicrosoft.com")),"Not Found")
         if self.tenantname == "Not Found":
-            dkim = f"selector1._domainkey.{self.domain}"
-            try:
-                answers = dns.resolver.resolve(dkim, 'CNAME')
-                for rdata in answers:
-                    cname = rdata.target.to_text()
-                    if cname.endswith(".onmicrosoft.com."):
-                        tenantname = cname.split("_domainkey.",1)[-1][:-1]
-                        #ensure domain found is in same tenant
-                        moera = EntraRecon(tenantname)
-                        moera.check_tenant()
-                        if moera.tenantid == self.tenantid:
-                            self.tenantname = tenantname
-                            self.domains.append(self.tenantname)
-                            return
+            moeraname = self.check_dkim(self.domain)
+            #ensure domain found is in same tenant
+            if moeraname != "":
+                moera = EntraRecon(moeraname)
+                moera.check_tenant()
+                if moera.tenantid == self.tenantid:
+                    self.tenantname = moeraname
+                    self.domains.append(self.tenantname)
+                    return
+            moera1 = EntraRecon(f"{self.domain.split('.',1)[0]}.onmicrosoft.com")
+            moera1.check_tenant()
+            if moera1.tenantid == self.tenantid:
+                self.tenantname = moera1.domain
+                self.domains.append(self.tenantname)
                 return
-            except Exception as e:
+            moera2 = EntraRecon(f"{self.domain.split('.',1)[0]}group.onmicrosoft.com")
+            moera2.check_tenant()
+            if moera2.tenantid == self.tenantid:
+                self.tenantname = moera2.domain
+                self.domains.append(self.tenantname)
                 return
-
+            moera3 = EntraRecon(f"{self.domain.split('.',1)[0]}sa.onmicrosoft.com")
+            moera3.check_tenant()
+            if moera3.tenantid == self.tenantid:
+                self.tenantname = moera3.domain
+                self.domains.append(self.tenantname)
+                return
             
-
 
 def main():
     parser = argparse.ArgumentParser(
@@ -267,10 +288,15 @@ def main():
     entrarecon.get_tenant_domains_from_api()
     entrarecon.find_MOERA()
 
-    if len(entrarecon.domains) != 0:
-        max_len = max(len(d) for d in entrarecon.domains)
-    else:
-        max_len = 20
+    max_len = max(len(d) for d in entrarecon.domains)
+
+    info_domains = {}
+    for domain in entrarecon.domains:
+        (dtype, sts) = entrarecon.check_federated(domain)
+        dkim = entrarecon.check_dkim(domain)
+        info_domains[domain] = (dtype, sts, dkim)
+
+    max_len1 = max(max(len(d[1]) for d in info_domains.values()), 3)
 
     print('')
     print(bold("General Information"))
@@ -285,13 +311,13 @@ def main():
     print(f"{bold('MDI Instance:'):22} {entrarecon.check_mdi()}")
     print(f"{bold('Autodiscover:'):22} {entrarecon.check_autodiscover()}")
     print('')
-    print("-" * (max_len+25))
-    print(f"{bold('Domain'):{max_len+8}} | {bold('Type'):17} | {bold('STS'):10}")
-    print("-" * (max_len+25))
+    print("-" * (max_len+33+max_len1))
+    print(f"{bold('Domain'):{max_len+8}} | {bold('Type'):17} | {bold('STS'):{max_len1+8}} | {bold('DKIM'):10}")
+    print("-" * (max_len+33+max_len1))
     for domain in entrarecon.domains:
-        (dtype, sts) = entrarecon.check_federated(domain)
-        print(f"{domain:{max_len}} | {dtype:9} | {sts:10}")
-    print("-" * (max_len+25))
+        (dtype, sts, dkim) = info_domains[domain]
+        print(f"{domain:{max_len}} | {dtype:9} | {sts:{max_len1}} | {dkim}")
+    print("-" * (max_len+33+max_len1))
     print('')
 
     entrarecon.check_azureservices()
