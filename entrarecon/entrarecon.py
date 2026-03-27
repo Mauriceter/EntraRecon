@@ -120,6 +120,7 @@ class EntraRecon:
         data = response.json()
 
         domains = set()
+        domains.add(self.domain)
         audiences = data.get("allowedAudiences", [])
 
         for audience in audiences:
